@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load health_extras %}
+{% block content %}
+<div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">My Health Records</h1>
+    <form method="get" class="mb-4 flex flex-wrap gap-2 items-center">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search..." class="border rounded px-2 py-1" />
+        <select name="category" class="border rounded px-2 py-1">
+            <option value="">All Health Categories</option>
+            {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if cat.id|stringformat:'s' == selected_category %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="disease_category" class="border rounded px-2 py-1">
+            <option value="">All Disease Categories</option>
+            {% for dcat in disease_categories %}
+                <option value="{{ dcat.id }}" {% if dcat.id|stringformat:'s' == selected_disease_category %}selected{% endif %}>{{ dcat.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="sort" class="border rounded px-2 py-1">
+            <option value="-date" {% if sort == '-date' %}selected{% endif %}>Newest</option>
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>Oldest</option>
+            <option value="title" {% if sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
+            <option value="-title" {% if sort == '-title' %}selected{% endif %}>Title (Z-A)</option>
+            <option value="data" {% if sort == 'data' %}selected{% endif %}>Value (Low-High)</option>
+            <option value="-data" {% if sort == '-data' %}selected{% endif %}>Value (High-Low)</option>
+        </select>
+        <button type="submit" class="bg-gray-200 px-4 py-2 rounded">Filter</button>
+    </form>
+    <div class="flex flex-wrap gap-2 mb-4">
+        <a href="{% url 'health:healthrecord_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded">Add New Record</a>
+        <a href="{% url 'health:healthrecord_upload_json' %}" class="bg-green-500 text-white px-4 py-2 rounded">Upload JSON</a>
+        <form method="post" action="" id="bulk-delete-form" class="inline-block">
+            {% csrf_token %}
+            <input type="date" name="delete_date" class="border rounded px-2 py-1" required>
+            <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded">Bulk Delete by Date</button>
+        </form>
+        <!-- Bulk Rename Title -->
+        <form method="post" action="{% url 'health:bulk_rename_title' %}" class="inline-block bg-gray-100 p-2 rounded">
+            {% csrf_token %}
+            <input type="text" name="old_title" placeholder="Old Title" class="border rounded px-2 py-1" required>
+            <input type="text" name="new_title" placeholder="New Title" class="border rounded px-2 py-1" required>
+            <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded">Bulk Rename Title</button>
+        </form>
+        <!-- Bulk Edit By Title -->
+        <form method="post" action="{% url 'health:bulk_edit_by_title' %}" class="inline-block bg-gray-100 p-2 rounded">
+            {% csrf_token %}
+            <input type="text" name="edit_title" placeholder="Title to Edit" class="border rounded px-2 py-1" required>
+            <select name="edit_category" class="border rounded px-2 py-1">
+                <option value="">Set Health Category</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="edit_disease_category" class="border rounded px-2 py-1">
+                <option value="">Set Disease Category</option>
+                {% for dcat in disease_categories %}
+                    <option value="{{ dcat.id }}">{{ dcat.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="edit_unit" placeholder="Unit" class="border rounded px-2 py-1">
+            <input type="text" name="edit_normal_min" placeholder="Normal Min" class="border rounded px-2 py-1">
+            <input type="text" name="edit_normal_max" placeholder="Normal Max" class="border rounded px-2 py-1">
+            <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded">Bulk Edit by Title</button>
+        </form>
+    </div>
+    <table class="min-w-full bg-white border border-gray-200 text-xs">
+        <thead>
+            <tr>
+                <th class="py-2 px-4 border-b">Date</th>
+                <th class="py-2 px-4 border-b">Title</th>
+                <th class="py-2 px-4 border-b">Category</th>
+                <th class="py-2 px-4 border-b">Disease</th>
+                <th class="py-2 px-4 border-b">Data</th>
+                <th class="py-2 px-4 border-b">Unit</th>
+                <th class="py-2 px-4 border-b">Normal Min</th>
+                <th class="py-2 px-4 border-b">Normal Max</th>
+                <th class="py-2 px-4 border-b">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr {% if record|record_out_of_range %}class="bg-red-100"{% endif %}>
+                <td class="py-2 px-4 border-b">{{ record.date }}</td>
+                <td class="py-2 px-4 border-b">{{ record.title }}</td>
+                <td class="py-2 px-4 border-b">{{ record.category }}</td>
+                <td class="py-2 px-4 border-b">{{ record.disease_category }}</td>
+                <td class="py-2 px-4 border-b">{{ record.data }}</td>
+                <td class="py-2 px-4 border-b">{{ record.unit }}</td>
+                <td class="py-2 px-4 border-b">{{ record.normal_min }}</td>
+                <td class="py-2 px-4 border-b">{{ record.normal_max }}</td>
+                <td class="py-2 px-4 border-b">
+                    <a href="{% url 'health:healthrecord_edit' record.pk %}" class="text-blue-600">Edit</a> |
+                    <a href="{% url 'health:healthrecord_delete' record.pk %}" class="text-red-600">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="py-2 px-4">No records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="mt-4 flex justify-center">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&search={{ search }}&sort={{ sort }}" class="px-3 py-1 bg-gray-200 rounded-l">&laquo; Prev</a>
+        {% endif %}
+        <span class="px-4 py-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&search={{ search }}&sort={{ sort }}" class="px-3 py-1 bg-gray-200 rounded-r">Next &raquo;</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

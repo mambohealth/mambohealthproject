@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-100">
+  <div class="w-full max-w-md p-8 space-y-6 bg-white rounded shadow">
+    <h2 class="text-2xl font-bold text-center">Sign in to your account</h2>
+    {% if form.errors %}
+      <div class="mb-4 text-red-600">{% trans "Invalid login details. Please try again." %}</div>
+    {% endif %}
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div>
+        <label for="id_login" class="block mb-1 font-medium">{% trans "Username or email" %}</label>
+        <input type="text" name="login" autofocus required id="id_login" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300" />
+      </div>
+      <div>
+        <label for="id_password" class="block mb-1 font-medium">{% trans "Password" %}</label>
+        <input type="password" name="password" required id="id_password" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300" />
+      </div>
+      <button type="submit" class="w-full py-2 font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">{% trans "Sign In" %}</button>
+    </form>
+    <div class="text-center">
+      <a href="{% url 'account_reset_password' %}" class="text-blue-600 hover:underline">{% trans "Forgot password?" %}</a>
+    </div>
+    <div class="text-center mt-2">
+      <a href="{% url 'account_signup' %}" class="text-blue-600 hover:underline">{% trans "Don't have an account? Sign up" %}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

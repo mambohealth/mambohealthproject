@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-100">
+  <div class="w-full max-w-md p-8 space-y-6 bg-white rounded shadow">
+    <h2 class="text-2xl font-bold text-center">Sign Up</h2>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form.visible_fields %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="block mb-1 font-medium">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="text-xs text-gray-500">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="text-xs text-red-600">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="w-full py-2 font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">Sign Up</button>
+    </form>
+    <div class="text-center mt-2">
+      <a href="{% url 'account_login' %}" class="text-blue-600 hover:underline">Already have an account? Sign in</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

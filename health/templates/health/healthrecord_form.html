@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto p-4 max-w-xl bg-white rounded shadow-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">
+        {% if record %}Edit{% else %}Add{% endif %} Health Record
+    </h1>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {{ form.date.label_tag }}{{ form.date }}
+            {{ form.title.label_tag }}{{ form.title }}
+            {{ form.category.label_tag }}{{ form.category }}
+            {{ form.disease_category.label_tag }}{{ form.disease_category }}
+            {{ form.data.label_tag }}{{ form.data }}
+            {{ form.unit.label_tag }}{{ form.unit }}
+            {{ form.normal_min.label_tag }}{{ form.normal_min }}
+            {{ form.normal_max.label_tag }}{{ form.normal_max }}
+            {{ form.tags.label_tag }}{{ form.tags }}
+        </div>
+        <div class="mt-2">
+            {{ form.notes.label_tag }}{{ form.notes }}
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded shadow">Save</button>
+            <a href="{% url 'health:healthrecord_list' %}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded shadow">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
