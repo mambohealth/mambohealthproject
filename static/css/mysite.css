@@ -1,0 +1,2 @@
+/* Tailwind CSS CDN fallback for development/demo purposes */
+@import 'tailwind.css'; /* Use locally built Tailwind CSS */

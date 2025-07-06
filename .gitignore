@@ -33,7 +33,7 @@ settings/local.py
 instance/
 media/
 staticfiles/
-static/
+#static/
 
 # VSCode and other IDEs
 .vscode/
