@@ -11,6 +11,8 @@ ALLOWED_HOSTS = ["*"]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
+
 
 try:
     from .local import *
