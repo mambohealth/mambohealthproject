@@ -1,51 +1,51 @@
 name: 🚀 Deploy Wagtail to Oracle Cloud
 
-# Trigger the workflow when code is pushed to the main branch
 on:
   push:
     branches: [ main ]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # The runner machine (virtual Ubuntu) that runs the job
+    runs-on: ubuntu-latest
 
     steps:
     - name: ⬇️ Checkout code
       uses: actions/checkout@v3
-      # This checks out your repository code on the runner VM, so the workflow has your code files.
+
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'  # Adjust to your Node.js version
+
+    - name: 📦 Install npm dependencies and build Tailwind CSS
+      run: |
+        cd theme                # Adjust if your package.json is in a different folder
+        npm ci
+        npm run build:tailwind  # Your npm script to build Tailwind CSS
 
     - name: 🔐 Setup SSH
       run: |
         mkdir -p ~/.ssh
-        # Save the private SSH key stored as a GitHub secret into the runner's SSH folder
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        # Add your server's host key to known_hosts to avoid SSH authenticity prompt
         ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-    - name: 📦 Sync code to server
+    - name: 📤 Sync code + static files to server
       run: |
-        # Use rsync to copy your code files (excluding .git folder) to the app server
         rsync -avz --exclude '.git' ./ ${{ secrets.USERNAME }}@${{ secrets.HOST }}:/home/${{ secrets.USERNAME }}/myproject/
 
-    - name: 🐍 Install dependencies and migrate
+    - name: 🐍 Install Python dependencies, migrate, collectstatic
       run: |
-        # SSH into the server and run commands inside a "here-doc" block
         ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} << EOF
-        cd ~/myproject
-        source ~/.venv/mambohealthvenv/bin/activate
-        pip install -r requirements.txt
-
-        # Export environment variables (e.g., secret keys) for this session
-        export DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}"
-        export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
-
-        # Run Django commands
-        python manage.py migrate
-        python manage.py collectstatic --noinput
+          cd ~/myproject
+          source ~/.venv/mambohealthvenv/bin/activate
+          pip install -r requirements.txt
+          export DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}"
+          export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          python manage.py migrate
+          python manage.py collectstatic --noinput
         EOF
 
-    - name: 🔁 Restart Gunicorn via systemd
+    - name: 🔁 Restart Gunicorn service
       run: |
-        # SSH to server and restart your systemd service to apply new code
         ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} "sudo systemctl restart mambohealth"
