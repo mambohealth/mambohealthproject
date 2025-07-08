@@ -1,7 +1,114 @@
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from .models import HealthRecord, HealthCategory, DiseaseCategory
+from .forms import HealthRecordForm
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from django.db.models import Count
+
+# Inline AJAX update for HealthRecord
+@login_required
+@require_POST
+def healthrecord_inline_update(request, pk):
+    record = get_object_or_404(HealthRecord, pk=pk, user=request.user)
+    field = request.POST.get('field')
+    value = request.POST.get('value')
+    if field in ['data', 'unit', 'notes']:
+        setattr(record, field, value)
+        record.save(update_fields=[field, 'updated_at'])
+        return JsonResponse({'success': True, 'value': value})
+    return JsonResponse({'success': False, 'error': 'Invalid field'})
+
+# AJAX: List comments for a record
+@login_required
+def healthrecord_comments(request, pk):
+    record = get_object_or_404(HealthRecord, pk=pk, user=request.user)
+    comments = record.comments.select_related('user').order_by('-created_at')
+    data = [
+        {
+            'user': c.user.username,
+            'comment': c.comment,
+            'created_at': c.created_at.strftime('%Y-%m-%d %H:%M'),
+        }
+        for c in comments
+    ]
+    return JsonResponse({'comments': data})
+
+# AJAX: Add comment to a record
+@login_required
+@require_POST
+def healthrecord_comment_add(request, pk):
+    record = get_object_or_404(HealthRecord, pk=pk, user=request.user)
+    comment = request.POST.get('comment', '').strip()
+    if comment:
+        HealthRecordComment.objects.create(record=record, user=request.user, comment=comment)
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False, 'error': 'Empty comment'})
+# Symptom Log Delete
+@login_required
+def symptomlog_delete(request, pk):
+    log = get_object_or_404(SymptomLog, pk=pk, user=request.user)
+    if request.method == 'POST':
+        log.delete()
+        return redirect('health:symptomlog_list')
+    return render(request, 'health/confirm_delete.html', {'object': log, 'type': 'Symptom Log'})
+
+# Medication Delete
+@login_required
+def medication_delete(request, pk):
+    med = get_object_or_404(Medication, pk=pk, user=request.user)
+    if request.method == 'POST':
+        med.delete()
+        return redirect('health:medication_list')
+    return render(request, 'health/confirm_delete.html', {'object': med, 'type': 'Medication'})
+from .forms import HealthRecordForm, HealthRecordCommentForm, SymptomLogForm, MedicationForm
+from .models import HealthRecord, HealthCategory, DiseaseCategory, SymptomLog, Medication, HealthRecordComment
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+
+# Symptom Log Views
+@login_required
+def symptomlog_list(request):
+    logs = SymptomLog.objects.filter(user=request.user).order_by('-date')
+    return render(request, 'health/symptomlog_list.html', {'logs': logs})
+
+@login_required
+def symptomlog_create(request):
+    if request.method == 'POST':
+        form = SymptomLogForm(request.POST)
+        if form.is_valid():
+            log = form.save(commit=False)
+            log.user = request.user
+            log.save()
+            return redirect('health:symptomlog_list')
+    else:
+        form = SymptomLogForm()
+    return render(request, 'health/symptomlog_form.html', {'form': form})
+
+# Medication Views
+@login_required
+def medication_list(request):
+    meds = Medication.objects.filter(user=request.user).order_by('-start_date')
+    return render(request, 'health/medication_list.html', {'meds': meds})
+
+@login_required
+def medication_create(request):
+    if request.method == 'POST':
+        form = MedicationForm(request.POST)
+        if form.is_valid():
+            med = form.save(commit=False)
+            med.user = request.user
+            med.save()
+            return redirect('health:medication_list')
+    else:
+        form = MedicationForm()
+    return render(request, 'health/medication_form.html', {'form': form})
+
 @login_required
 def bulk_rename_title(request):
     if request.method == 'POST':
@@ -42,16 +149,11 @@ def bulk_edit_by_title(request):
             messages.error(request, 'Title and at least one field to update are required.')
         return HttpResponseRedirect(reverse('health:healthrecord_list'))
     return HttpResponseRedirect(reverse('health:healthrecord_list'))
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from .models import HealthRecord, HealthCategory, DiseaseCategory
-from .forms import HealthRecordForm
-from django.core.paginator import Paginator
-from django.db.models import Q
+
 
 @login_required
 def healthrecord_list(request):
-    records = HealthRecord.objects.filter(user=request.user)
+    records = HealthRecord.objects.filter(user=request.user).annotate(comment_count=Count('comments'))
 
 
     # Filtering

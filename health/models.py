@@ -2,6 +2,33 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from wagtail.snippets.models import register_snippet
 
+class HealthRecordComment(models.Model):
+    record = models.ForeignKey('HealthRecord', on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class SymptomLog(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    symptom = models.CharField(max_length=200)
+    severity = models.IntegerField(default=1)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class Medication(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    name = models.CharField(max_length=200)
+    dosage = models.CharField(max_length=100, blank=True)
+    frequency = models.CharField(max_length=100, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 @register_snippet
 class HealthCategory(models.Model):
     name = models.CharField(max_length=100)

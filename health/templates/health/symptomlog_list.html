@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-4">
+  <h2 class="text-xl font-bold mb-4">Symptom Log</h2>
+  <a href="{% url 'health:symptomlog_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 inline-block">Add Symptom</a>
+  <table class="min-w-full bg-white border border-gray-200 text-xs">
+    <thead>
+      <tr>
+        <th class="py-2 px-4 border-b">Date</th>
+        <th class="py-2 px-4 border-b">Symptom</th>
+        <th class="py-2 px-4 border-b">Severity</th>
+        <th class="py-2 px-4 border-b">Notes</th>
+        <th class="py-2 px-4 border-b">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td class="py-2 px-4 border-b">{{ log.date }}</td>
+        <td class="py-2 px-4 border-b">{{ log.symptom }}</td>
+        <td class="py-2 px-4 border-b">{{ log.severity }}</td>
+        <td class="py-2 px-4 border-b">{{ log.notes }}</td>
+        <td class="py-2 px-4 border-b">
+          <form method="post" action="{% url 'health:symptomlog_delete' log.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this symptom log?');">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="py-2 px-4">No symptoms logged.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

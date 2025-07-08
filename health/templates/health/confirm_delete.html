@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-4 max-w-lg">
+  <h2 class="text-xl font-bold mb-4">Delete {{ type }}</h2>
+  <form method="post">
+    {% csrf_token %}
+    <p>Are you sure you want to delete this {{ type|lower }}?</p>
+    <div class="my-4 p-2 bg-gray-100 rounded">
+      {{ object }}
+    </div>
+    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded">Delete</button>
+    <a href="javascript:history.back()" class="ml-2 text-gray-600">Cancel</a>
+  </form>
+</div>
+{% endblock %}

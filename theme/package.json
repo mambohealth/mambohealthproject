@@ -5,8 +5,8 @@
   "scripts": {
     "build": "npm run build:clean && npm run build:tailwind",
     "build:clean": "rimraf ../static/css/dist",
-    "build:tailwind": "tailwindcss -i ./src/input.css -o ../static/css/dist/tailwind.css --minify",
-    "watch": "tailwindcss -i ./src/input.css -o ../static/css/dist/tailwind.css --watch"
+    "build:tailwind": "tailwindcss -i ./src/mysite.css -o ../static/css/mysite.css --minify",
+    "watch": "tailwindcss -i ./src/input.css -o ../static/css/mysite.css --watch"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",

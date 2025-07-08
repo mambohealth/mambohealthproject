@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-4">
+  <h2 class="text-xl font-bold mb-4">Medications</h2>
+  <a href="{% url 'health:medication_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 inline-block">Add Medication</a>
+  <table class="min-w-full bg-white border border-gray-200 text-xs">
+    <thead>
+      <tr>
+        <th class="py-2 px-4 border-b">Name</th>
+        <th class="py-2 px-4 border-b">Dosage</th>
+        <th class="py-2 px-4 border-b">Frequency</th>
+        <th class="py-2 px-4 border-b">Start Date</th>
+        <th class="py-2 px-4 border-b">End Date</th>
+        <th class="py-2 px-4 border-b">Notes</th>
+        <th class="py-2 px-4 border-b">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for med in meds %}
+      <tr>
+        <td class="py-2 px-4 border-b">{{ med.name }}</td>
+        <td class="py-2 px-4 border-b">{{ med.dosage }}</td>
+        <td class="py-2 px-4 border-b">{{ med.frequency }}</td>
+        <td class="py-2 px-4 border-b">{{ med.start_date }}</td>
+        <td class="py-2 px-4 border-b">{{ med.end_date }}</td>
+        <td class="py-2 px-4 border-b">{{ med.notes }}</td>
+        <td class="py-2 px-4 border-b">
+          <form method="post" action="{% url 'health:medication_delete' med.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this medication?');">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="py-2 px-4">No medications found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
