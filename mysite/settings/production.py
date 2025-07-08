@@ -10,6 +10,8 @@ DEBUG = False  # Should be False in production!
 
 ALLOWED_HOSTS = ['127.0.0.1', '170.9.20.139', 'mambohealth.eu.org', 'www.mambohealth.eu.org']
 
+# need to set up email settings for production
+
 try:
     from .local import *
 except ImportError:
