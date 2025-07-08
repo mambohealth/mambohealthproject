@@ -212,5 +212,6 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = ["tailwind"]
 CRISPY_TEMPLATE_PACK = "tailwind"
 
 TAILWIND_APP_NAME = 'theme'
+TAILWIND_CSS_PATH = "static/css/mysite.css" 
 INTERNAL_IPS = ['127.0.0.1']
 
