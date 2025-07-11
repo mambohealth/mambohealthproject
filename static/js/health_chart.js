@@ -39,12 +39,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 const params = new URLSearchParams(window.location.search);
                 const outOfRangeActive = params.get('out_of_range') === 'on';
 
-                healthChart = new Chart(ctx, {
-                    type: currentChartType === 'area' ? 'line' : currentChartType,
-                    data: {
-                        datasets: data.datasets.map((ds, i) => ({
+                // Only include datasets with at least one visible data point
+                const filteredDatasets = data.datasets
+                    .map((ds, i) => {
+                        const filteredData = outOfRangeActive ? ds.data.filter(d => d.out_of_range) : ds.data;
+                        return {
                             label: ds.label,
-                            data: outOfRangeActive ? ds.data.filter(d => d.out_of_range) : ds.data,
+                            data: filteredData,
                             borderColor: `hsl(${i * 60}, 70%, 50%)`,
                             backgroundColor: currentChartType === 'area' ? `hsla(${i * 60}, 70%, 50%, 0.2)` : `hsla(${i * 60}, 70%, 50%, 0.5)`,
                             borderWidth: 2,
@@ -52,7 +53,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             pointRadius: (context) => (context.raw && context.raw.out_of_range) ? 8 : 4,
                             pointStyle: (context) => (context.raw && context.raw.out_of_range) ? 'rectRot' : 'circle',
                             pointBackgroundColor: (context) => (context.raw && context.raw.out_of_range) ? '#ef4444' : `hsl(${i * 60}, 70%, 50%)`,
-                        }))
+                        };
+                    })
+                    .filter(ds => ds.data.length > 0);
+
+                healthChart = new Chart(ctx, {
+                    type: currentChartType === 'area' ? 'line' : currentChartType,
+                    data: {
+                        datasets: filteredDatasets
                     },
                     options: {
                         responsive: true,

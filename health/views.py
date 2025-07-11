@@ -29,9 +29,15 @@ def healthrecord_chart_data(request):
     if disease_id:
         records = records.filter(disease_category_id=disease_id)
     if search_query:
-        records = records.filter(title__icontains=search_query)
+        records = records.filter(
+            Q(title__icontains=search_query) |
+            Q(category__name__icontains=search_query) |
+            Q(disease_category__name__icontains=search_query) |
+            Q(data__icontains=search_query)
+        )
 
-    records = records.exclude(data__isnull=True).exclude(data__exact='').exclude(data='None')
+    # Exclude records with non-numeric data before attempting to filter by value
+    records = records.exclude(data__isnull=True).exclude(data__exact='')
 
     if out_of_range_filter:
         # This corrected query explicitly checks that a boundary exists before comparing against it.
