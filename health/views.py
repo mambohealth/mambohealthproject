@@ -1,3 +1,69 @@
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from .models import HealthRecord, HealthCategory, DiseaseCategory
+from django.db.models import Q
+from django.shortcuts import render
+# --- Chart View ---
+@login_required
+def healthrecord_chart(request):
+    categories = HealthCategory.objects.all()
+    disease_categories = DiseaseCategory.objects.all()
+    return render(request, 'health/healthrecord_chart.html', {
+        'categories': categories,
+        'disease_categories': disease_categories,
+    })
+
+# --- Chart Data AJAX Endpoint ---
+@login_required
+def healthrecord_chart_data(request):
+    user = request.user
+    category_id = request.GET.get('category', '')
+    disease_id = request.GET.get('disease', '')
+    titles = request.GET.getlist('titles[]')
+    records = HealthRecord.objects.filter(user=user)
+    if category_id:
+        records = records.filter(category_id=category_id)
+    if disease_id:
+        records = records.filter(disease_category_id=disease_id)
+    all_titles = records.values_list('title', flat=True).distinct()
+    if titles:
+        records = records.filter(title__in=titles)
+    records = records.order_by('date')
+    datasets = {}
+    for r in records:
+        try:
+            value = float(r.data)
+        except (TypeError, ValueError):
+            value = None
+        out_of_range = False
+        try:
+            min_val = float(r.normal_min) if r.normal_min else None
+            max_val = float(r.normal_max) if r.normal_max else None
+            if value is not None and min_val is not None and value < min_val:
+                out_of_range = True
+            if value is not None and max_val is not None and value > max_val:
+                out_of_range = True
+        except Exception:
+            pass
+        if r.title not in datasets:
+            datasets[r.title] = {
+                'label': r.title,
+                'data': [],
+                'dates': [],
+                'normal_min': r.normal_min,
+                'normal_max': r.normal_max,
+                'comments': [],
+                'out_of_range': [],
+                'unit': r.unit,
+            }
+        datasets[r.title]['data'].append(r.data)
+        datasets[r.title]['dates'].append(r.date.strftime('%Y-%m-%d'))
+        datasets[r.title]['comments'].append('\n'.join([c.comment for c in r.comments.all()]))
+        datasets[r.title]['out_of_range'].append(out_of_range)
+    return JsonResponse({
+        'datasets': list(datasets.values()),
+        'all_titles': list(all_titles),
+    })
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
