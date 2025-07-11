@@ -30,13 +30,7 @@
             <label>Disease</label>
         </div>
 
-        <!-- Title Filter -->
-        <div class="input-field">
-            <select id="titleFilter" multiple>
-                <option value="" disabled>Choose Titles</option>
-            </select>
-            <label>Titles</label>
-        </div>
+        <!-- Title selection removed; legend is interactive for filtering -->
     </div>
 
     <div class="chart-container" style="position: relative; height:50vh; width:70vw">
@@ -45,6 +39,7 @@
 
     <div class="flex flex-wrap gap-4 mt-4">
         <button id="lineChartBtn" class="btn">Line</button>
+        <button id="areaChartBtn" class="btn">Area</button>
         <button id="barChartBtn" class="btn">Bar</button>
         <button id="resetZoomBtn" class="btn">Reset Zoom</button>
     </div>
@@ -56,6 +51,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script src="{% static 'js/health_chart.js' %}"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">

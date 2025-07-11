@@ -5,65 +5,87 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const categoryFilter = document.getElementById('categoryFilter');
     const diseaseFilter = document.getElementById('diseaseFilter');
-    const titleFilter = document.getElementById('titleFilter');
     const lineChartBtn = document.getElementById('lineChartBtn');
+    const areaChartBtn = document.getElementById('areaChartBtn');
     const barChartBtn = document.getElementById('barChartBtn');
     const resetZoomBtn = document.getElementById('resetZoomBtn');
 
     function updateChart() {
         const categoryId = categoryFilter.value;
         const diseaseId = diseaseFilter.value;
-        const selectedTitles = Array.from(titleFilter.selectedOptions).map(option => option.value);
-
         let url = `/health/chart-data/?category=${categoryId}&disease=${diseaseId}`;
-        selectedTitles.forEach(title => {
-            url += `&titles[]=${encodeURIComponent(title)}`;
-        });
-
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (healthChart) {
                     healthChart.destroy();
                 }
+                // Show "No data available" message if no datasets
+                const chartContainer = document.getElementById('healthChart').parentElement;
+                let noDataMsg = document.getElementById('no-data-message');
+                if (!data.datasets || data.datasets.length === 0) {
+                    if (!noDataMsg) {
+                        noDataMsg = document.createElement('div');
+                        noDataMsg.id = 'no-data-message';
+                        noDataMsg.className = 'text-center text-gray-500 py-8';
+                        noDataMsg.innerText = 'No data available for the selected filters.';
+                        chartContainer.appendChild(noDataMsg);
+                    }
+                    return;
+                } else {
+                    if (noDataMsg) noDataMsg.remove();
+                }
 
-                const existingTitles = new Set(Array.from(titleFilter.options).map(o => o.value));
-                data.all_titles.forEach(title => {
-                    if (!existingTitles.has(title)) {
-                        const option = new Option(title, title, false, selectedTitles.includes(title));
-                        titleFilter.add(option);
+                // Prepare annotation plugin config for healthy ranges
+                let annotations = {};
+                data.datasets.forEach((ds, i) => {
+                    if (ds.normal_min !== null && ds.normal_min !== '' && !isNaN(ds.normal_min)) {
+                        annotations[`min${i}`] = {
+                            type: 'line',
+                            yMin: parseFloat(ds.normal_min),
+                            yMax: parseFloat(ds.normal_min),
+                            borderColor: 'rgba(34,197,94,0.7)',
+                            borderWidth: 2,
+                            label: {
+                                display: true,
+                                content: 'Min',
+                                position: 'start',
+                                color: 'rgba(34,197,94,0.7)',
+                            }
+                        };
+                    }
+                    if (ds.normal_max !== null && ds.normal_max !== '' && !isNaN(ds.normal_max)) {
+                        annotations[`max${i}`] = {
+                            type: 'line',
+                            yMin: parseFloat(ds.normal_max),
+                            yMax: parseFloat(ds.normal_max),
+                            borderColor: 'rgba(34,197,94,0.7)',
+                            borderWidth: 2,
+                            label: {
+                                display: true,
+                                content: 'Max',
+                                position: 'end',
+                                color: 'rgba(34,197,94,0.7)',
+                            }
+                        };
                     }
                 });
-                const instance = M.FormSelect.getInstance(titleFilter);
-                instance.destroy();
-                M.FormSelect.init(titleFilter);
 
                 healthChart = new Chart(ctx, {
-                    type: currentChartType,
+                    type: currentChartType === 'area' ? 'line' : currentChartType,
                     data: {
                         labels: data.datasets.length > 0 ? data.datasets[0].dates : [],
-                        datasets: data.datasets.map(ds => ({
+                        datasets: data.datasets.map((ds, i) => ({
                             label: ds.label,
                             data: ds.data,
-                            borderColor: getRandomColor(),
-                            backgroundColor: function(context) {
-                                const index = context.dataIndex;
-                                const outOfRange = ds.out_of_range[index];
-                                return outOfRange ? 'rgba(255, 99, 132, 0.7)' : 'rgba(75, 192, 192, 0.5)';
-                            },
+                            borderColor: `hsl(${i * 60}, 70%, 50%)`,
+                            backgroundColor: currentChartType === 'area' ? `hsla(${i * 60}, 70%, 50%, 0.2)` : 'rgba(75, 192, 192, 0.5)',
                             borderWidth: 2,
-                            fill: currentChartType === 'line' ? false : true,
-                            tension: 0.1,
-                            pointRadius: function(context) {
-                                const index = context.dataIndex;
-                                const outOfRange = ds.out_of_range[index];
-                                return outOfRange ? 6 : 3;
-                            },
-                            pointBackgroundColor: function(context) {
-                                const index = context.dataIndex;
-                                const outOfRange = ds.out_of_range[index];
-                                return outOfRange ? 'red' : 'blue';
-                            }
+                            fill: currentChartType === 'area',
+                            tension: 0.3,
+                            pointRadius: ds.out_of_range.map(v => v ? 8 : 4),
+                            pointStyle: ds.out_of_range.map(v => v ? 'rectRot' : 'circle'),
+                            pointBackgroundColor: ds.out_of_range.map(v => v ? '#ef4444' : `hsl(${i * 60}, 70%, 50%)`),
                         }))
                     },
                     options: {
@@ -84,20 +106,36 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         },
                         plugins: {
+                            legend: {
+                                display: true,
+                                onClick: function(e, legendItem, legend) {
+                                    const label = legendItem.text;
+                                    const meta = healthChart.getDatasetMeta(legendItem.datasetIndex);
+                                    meta.hidden = meta.hidden === null ? !healthChart.data.datasets[legendItem.datasetIndex].hidden : null;
+                                    healthChart.update();
+                                }
+                            },
                             tooltip: {
                                 callbacks: {
-                                    footer: function (tooltipItems) {
-                                        let footer = '';
-                                        tooltipItems.forEach(function (tooltipItem) {
-                                            const dataset = data.datasets[tooltipItem.datasetIndex];
-                                            const comment = dataset.comments[tooltipItem.dataIndex];
-                                            if (comment) {
-                                                footer += `Comment: ${comment}\n`;
-                                            }
-                                        });
-                                        return footer;
-                                    }
-                                }
+                                    label: function(context) {
+                                        const ds = data.datasets[context.datasetIndex];
+                                        const idx = context.dataIndex;
+                                        let label = `${ds.label}: ${context.parsed.y}`;
+                                        label += `\nDate: ${context.parsed.x}`;
+                                        if (ds.normal_min !== null && ds.normal_min !== '' && !isNaN(ds.normal_min)) {
+                                            label += `\nHealthy Min: ${ds.normal_min}`;
+                                        }
+                                        if (ds.normal_max !== null && ds.normal_max !== '' && !isNaN(ds.normal_max)) {
+                                            label += `\nHealthy Max: ${ds.normal_max}`;
+                                        }
+                                        if (ds.comments && ds.comments[idx]) label += `\nComment: ${ds.comments[idx]}`;
+                                        if (ds.out_of_range[idx]) label += `\n⚠️ Out of Range`;
+                                        return label;
+                                    },
+                                },
+                            },
+                            annotation: {
+                                annotations: annotations
                             },
                             zoom: {
                                 pan: {
@@ -131,10 +169,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     categoryFilter.addEventListener('change', updateChart);
     diseaseFilter.addEventListener('change', updateChart);
-    titleFilter.addEventListener('change', updateChart);
 
     lineChartBtn.addEventListener('click', () => {
         currentChartType = 'line';
+        updateChart();
+    });
+
+    areaChartBtn.addEventListener('click', () => {
+        currentChartType = 'area';
         updateChart();
     });
 
@@ -151,7 +193,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     M.FormSelect.init(categoryFilter);
     M.FormSelect.init(diseaseFilter);
-    M.FormSelect.init(titleFilter);
 
     updateChart();
 });
