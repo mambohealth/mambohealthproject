@@ -1,17 +1,17 @@
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from .models import HealthRecord, HealthCategory, DiseaseCategory
-from django.db.models import Q
-from django.shortcuts import render
-# --- Chart View ---
-@login_required
-def healthrecord_chart(request):
-    categories = HealthCategory.objects.all()
-    disease_categories = DiseaseCategory.objects.all()
-    return render(request, 'health/healthrecord_chart.html', {
-        'categories': categories,
-        'disease_categories': disease_categories,
-    })
+from .models import HealthRecord, HealthCategory, DiseaseCategory, SymptomLog, Medication, HealthRecordComment
+from django.db.models import Q, F, Count
+from django.db.models.functions import Cast
+from django.db.models.fields import FloatField
+from django.shortcuts import render, redirect, get_object_or_404
+from collections import defaultdict
+from django.views.decorators.http import require_POST
+from .forms import HealthRecordForm, HealthRecordCommentForm, SymptomLogForm, MedicationForm
+from django.core.paginator import Paginator
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+from django.contrib import messages
 
 # --- Chart Data AJAX Endpoint ---
 @login_required
@@ -19,61 +19,73 @@ def healthrecord_chart_data(request):
     user = request.user
     category_id = request.GET.get('category', '')
     disease_id = request.GET.get('disease', '')
-    titles = request.GET.getlist('titles[]')
+    search_query = request.GET.get('search', '')
+    out_of_range_filter = request.GET.get('out_of_range', 'false') == 'true'
+
     records = HealthRecord.objects.filter(user=user)
+
     if category_id:
         records = records.filter(category_id=category_id)
     if disease_id:
         records = records.filter(disease_category_id=disease_id)
-    all_titles = records.values_list('title', flat=True).distinct()
-    if titles:
-        records = records.filter(title__in=titles)
+    if search_query:
+        records = records.filter(title__icontains=search_query)
+
+    records = records.exclude(data__isnull=True).exclude(data__exact='').exclude(data='None')
+
+    if out_of_range_filter:
+        # This corrected query explicitly checks that a boundary exists before comparing against it.
+        records = records.annotate(
+            data_float=Cast('data', FloatField()),
+            normal_min_float=Cast('normal_min', FloatField()),
+            normal_max_float=Cast('normal_max', FloatField())
+        ).filter(
+            Q(normal_min__isnull=False, normal_min__gt='', data_float__lt=F('normal_min_float')) |
+            Q(normal_max__isnull=False, normal_max__gt='', data_float__gt=F('normal_max_float'))
+        )
+
     records = records.order_by('date')
-    datasets = {}
+    
+    datasets = defaultdict(lambda: {'label': '', 'data': [], 'normal_min': None, 'normal_max': None, 'unit': None})
+
     for r in records:
+        title = r.title
+        if not datasets[title]['label']:
+            datasets[title]['label'] = title
+            datasets[title]['normal_min'] = r.normal_min
+            datasets[title]['normal_max'] = r.normal_max
+            datasets[title]['unit'] = r.unit
+
         try:
             value = float(r.data)
+            min_val = float(r.normal_min) if r.normal_min is not None and r.normal_min != '' else None
+            max_val = float(r.normal_max) if r.normal_max is not None and r.normal_max != '' else None
+            out_of_range = False
+            if min_val is not None and value < min_val:
+                out_of_range = True
+            if max_val is not None and value > max_val:
+                out_of_range = True
+            # Only include out-of-range values if filter is active
+            if out_of_range_filter:
+                if out_of_range:
+                    datasets[title]['data'].append({
+                        'x': r.date.strftime('%Y-%m-%d'),
+                        'y': value,
+                        'out_of_range': out_of_range,
+                        'comments': '\n'.join([c.comment for c in r.comments.all()])
+                    })
+            else:
+                datasets[title]['data'].append({
+                    'x': r.date.strftime('%Y-%m-%d'),
+                    'y': value,
+                    'out_of_range': out_of_range,
+                    'comments': '\n'.join([c.comment for c in r.comments.all()])
+                })
         except (TypeError, ValueError):
-            value = None
-        out_of_range = False
-        try:
-            min_val = float(r.normal_min) if r.normal_min else None
-            max_val = float(r.normal_max) if r.normal_max else None
-            if value is not None and min_val is not None and value < min_val:
-                out_of_range = True
-            if value is not None and max_val is not None and value > max_val:
-                out_of_range = True
-        except Exception:
-            pass
-        if r.title not in datasets:
-            datasets[r.title] = {
-                'label': r.title,
-                'data': [],
-                'dates': [],
-                'normal_min': r.normal_min,
-                'normal_max': r.normal_max,
-                'comments': [],
-                'out_of_range': [],
-                'unit': r.unit,
-            }
-        datasets[r.title]['data'].append(r.data)
-        datasets[r.title]['dates'].append(r.date.strftime('%Y-%m-%d'))
-        datasets[r.title]['comments'].append('\n'.join([c.comment for c in r.comments.all()]))
-        datasets[r.title]['out_of_range'].append(out_of_range)
-    return JsonResponse({
-        'datasets': list(datasets.values()),
-        'all_titles': list(all_titles),
-    })
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from .models import HealthRecord, HealthCategory, DiseaseCategory
-from .forms import HealthRecordForm
-from django.core.paginator import Paginator
-from django.db.models import Q
+            continue
 
-from django.db.models import Count
+    return JsonResponse({'datasets': list(datasets.values())})
+
 
 # Inline AJAX update for HealthRecord
 @login_required
@@ -113,6 +125,7 @@ def healthrecord_comment_add(request, pk):
         HealthRecordComment.objects.create(record=record, user=request.user, comment=comment)
         return JsonResponse({'success': True})
     return JsonResponse({'success': False, 'error': 'Empty comment'})
+
 # Symptom Log Delete
 @login_required
 def symptomlog_delete(request, pk):
@@ -130,12 +143,6 @@ def medication_delete(request, pk):
         med.delete()
         return redirect('health:medication_list')
     return render(request, 'health/confirm_delete.html', {'object': med, 'type': 'Medication'})
-from .forms import HealthRecordForm, HealthRecordCommentForm, SymptomLogForm, MedicationForm
-from .models import HealthRecord, HealthCategory, DiseaseCategory, SymptomLog, Medication, HealthRecordComment
-from django.urls import reverse
-from django.http import HttpResponseRedirect
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 
 # Symptom Log Views
 @login_required
@@ -221,12 +228,12 @@ def bulk_edit_by_title(request):
 def healthrecord_list(request):
     records = HealthRecord.objects.filter(user=request.user).annotate(comment_count=Count('comments'))
 
-
     # Filtering
     search = request.GET.get('search', '').strip()
     sort = request.GET.get('sort', '-date')
     category_id = request.GET.get('category', '')
     disease_category_id = request.GET.get('disease_category', '')
+    out_of_range = request.GET.get('out_of_range', 'off') == 'on'
 
     if search:
         records = records.filter(
@@ -239,6 +246,16 @@ def healthrecord_list(request):
         records = records.filter(category_id=category_id)
     if disease_category_id:
         records = records.filter(disease_category_id=disease_category_id)
+    
+    if out_of_range:
+        records = records.exclude(data__isnull=True).exclude(data__exact='').exclude(data='None').annotate(
+            data_float=Cast('data', FloatField()),
+            normal_min_float=Cast('normal_min', FloatField()),
+            normal_max_float=Cast('normal_max', FloatField())
+        ).filter(
+            Q(normal_min__isnull=False, normal_min__gt='', data_float__lt=F('normal_min_float')) |
+            Q(normal_max__isnull=False, normal_max__gt='', data_float__gt=F('normal_max_float'))
+        )
 
     # Sorting
     allowed_sorts = ['date', '-date', 'title', '-title', 'data', '-data']
@@ -270,6 +287,7 @@ def healthrecord_list(request):
         'disease_categories': disease_categories,
         'selected_category': category_id,
         'selected_disease_category': disease_category_id,
+        'out_of_range': out_of_range,
     })
 
 @login_required
@@ -303,4 +321,4 @@ def healthrecord_delete(request, pk):
     if request.method == 'POST':
         record.delete()
         return redirect('health:healthrecord_list')
-    return render(request, 'health/healthrecord_confirm_delete.html', {'record': record})
+    return render(request, 'health/confirm_delete.html', {'record': record})

@@ -1,26 +1,25 @@
 document.addEventListener('DOMContentLoaded', function () {
     const ctx = document.getElementById('healthChart').getContext('2d');
     let healthChart;
-    let currentChartType = 'line';
+    let currentChartType = 'line'; // Line chart is default
 
-    const categoryFilter = document.getElementById('categoryFilter');
-    const diseaseFilter = document.getElementById('diseaseFilter');
     const lineChartBtn = document.getElementById('lineChartBtn');
     const areaChartBtn = document.getElementById('areaChartBtn');
     const barChartBtn = document.getElementById('barChartBtn');
     const resetZoomBtn = document.getElementById('resetZoomBtn');
 
     function updateChart() {
-        const categoryId = categoryFilter.value;
-        const diseaseId = diseaseFilter.value;
-        let url = `/health/chart-data/?category=${categoryId}&disease=${diseaseId}`;
+        // Construct URL from current page's query parameters
+        const url = new URL(window.location.href);
+        url.pathname = '/health/chart-data/'; // Target the chart data endpoint
+        
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (healthChart) {
                     healthChart.destroy();
                 }
-                // Show "No data available" message if no datasets
+
                 const chartContainer = document.getElementById('healthChart').parentElement;
                 let noDataMsg = document.getElementById('no-data-message');
                 if (!data.datasets || data.datasets.length === 0) {
@@ -36,56 +35,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (noDataMsg) noDataMsg.remove();
                 }
 
-                // Prepare annotation plugin config for healthy ranges
-                let annotations = {};
-                data.datasets.forEach((ds, i) => {
-                    if (ds.normal_min !== null && ds.normal_min !== '' && !isNaN(ds.normal_min)) {
-                        annotations[`min${i}`] = {
-                            type: 'line',
-                            yMin: parseFloat(ds.normal_min),
-                            yMax: parseFloat(ds.normal_min),
-                            borderColor: 'rgba(34,197,94,0.7)',
-                            borderWidth: 2,
-                            label: {
-                                display: true,
-                                content: 'Min',
-                                position: 'start',
-                                color: 'rgba(34,197,94,0.7)',
-                            }
-                        };
-                    }
-                    if (ds.normal_max !== null && ds.normal_max !== '' && !isNaN(ds.normal_max)) {
-                        annotations[`max${i}`] = {
-                            type: 'line',
-                            yMin: parseFloat(ds.normal_max),
-                            yMax: parseFloat(ds.normal_max),
-                            borderColor: 'rgba(34,197,94,0.7)',
-                            borderWidth: 2,
-                            label: {
-                                display: true,
-                                content: 'Max',
-                                position: 'end',
-                                color: 'rgba(34,197,94,0.7)',
-                            }
-                        };
-                    }
-                });
+                // If out_of_range filter is active, filter out non-out-of-range points client-side as well
+                const params = new URLSearchParams(window.location.search);
+                const outOfRangeActive = params.get('out_of_range') === 'on';
 
                 healthChart = new Chart(ctx, {
                     type: currentChartType === 'area' ? 'line' : currentChartType,
                     data: {
-                        labels: data.datasets.length > 0 ? data.datasets[0].dates : [],
                         datasets: data.datasets.map((ds, i) => ({
                             label: ds.label,
-                            data: ds.data,
+                            data: outOfRangeActive ? ds.data.filter(d => d.out_of_range) : ds.data,
                             borderColor: `hsl(${i * 60}, 70%, 50%)`,
-                            backgroundColor: currentChartType === 'area' ? `hsla(${i * 60}, 70%, 50%, 0.2)` : 'rgba(75, 192, 192, 0.5)',
+                            backgroundColor: currentChartType === 'area' ? `hsla(${i * 60}, 70%, 50%, 0.2)` : `hsla(${i * 60}, 70%, 50%, 0.5)`,
                             borderWidth: 2,
                             fill: currentChartType === 'area',
-                            tension: 0.3,
-                            pointRadius: ds.out_of_range.map(v => v ? 8 : 4),
-                            pointStyle: ds.out_of_range.map(v => v ? 'rectRot' : 'circle'),
-                            pointBackgroundColor: ds.out_of_range.map(v => v ? '#ef4444' : `hsl(${i * 60}, 70%, 50%)`),
+                            pointRadius: (context) => (context.raw && context.raw.out_of_range) ? 8 : 4,
+                            pointStyle: (context) => (context.raw && context.raw.out_of_range) ? 'rectRot' : 'circle',
+                            pointBackgroundColor: (context) => (context.raw && context.raw.out_of_range) ? '#ef4444' : `hsl(${i * 60}, 70%, 50%)`,
                         }))
                     },
                     options: {
@@ -93,6 +59,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         maintainAspectRatio: false,
                         scales: {
                             x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day',
+                                    tooltipFormat: 'yyyy-MM-dd'
+                                },
                                 title: {
                                     display: true,
                                     text: 'Date'
@@ -106,93 +77,49 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         },
                         plugins: {
-                            legend: {
-                                display: true,
-                                onClick: function(e, legendItem, legend) {
-                                    const label = legendItem.text;
-                                    const meta = healthChart.getDatasetMeta(legendItem.datasetIndex);
-                                    meta.hidden = meta.hidden === null ? !healthChart.data.datasets[legendItem.datasetIndex].hidden : null;
-                                    healthChart.update();
-                                }
-                            },
                             tooltip: {
+                                enabled: true,
                                 callbacks: {
                                     label: function(context) {
-                                        const ds = data.datasets[context.datasetIndex];
-                                        const idx = context.dataIndex;
-                                        let label = `${ds.label}: ${context.parsed.y}`;
-                                        label += `\nDate: ${context.parsed.x}`;
-                                        if (ds.normal_min !== null && ds.normal_min !== '' && !isNaN(ds.normal_min)) {
-                                            label += `\nHealthy Min: ${ds.normal_min}`;
+                                        const point = context.raw;
+                                        const ds = context.dataset;
+                                        let label = `${ds.label}: ${point.y}`;
+                                        if (point.out_of_range) {
+                                            label += ` (Out of Range)`;
                                         }
-                                        if (ds.normal_max !== null && ds.normal_max !== '' && !isNaN(ds.normal_max)) {
-                                            label += `\nHealthy Max: ${ds.normal_max}`;
-                                        }
-                                        if (ds.comments && ds.comments[idx]) label += `\nComment: ${ds.comments[idx]}`;
-                                        if (ds.out_of_range[idx]) label += `\n⚠️ Out of Range`;
                                         return label;
-                                    },
-                                },
-                            },
-                            annotation: {
-                                annotations: annotations
-                            },
-                            zoom: {
-                                pan: {
-                                    enabled: true,
-                                    mode: 'x',
-                                },
-                                zoom: {
-                                    wheel: {
-                                        enabled: true,
-                                    },
-                                    pinch: {
-                                        enabled: true
-                                    },
-                                    mode: 'x',
+                                    }
                                 }
+                            },
+                            legend: {
+                                display: true
                             }
                         }
                     }
                 });
-            });
+            })
+            .catch(error => console.error('Error fetching or processing chart data:', error));
     }
 
-    function getRandomColor() {
-        const letters = '0123456789ABCDEF';
-        let color = '#';
-        for (let i = 0; i < 6; i++) {
-            color += letters[Math.floor(Math.random() * 16)];
-        }
-        return color;
-    }
-
-    categoryFilter.addEventListener('change', updateChart);
-    diseaseFilter.addEventListener('change', updateChart);
-
+    // Chart type buttons
     lineChartBtn.addEventListener('click', () => {
         currentChartType = 'line';
         updateChart();
     });
-
     areaChartBtn.addEventListener('click', () => {
         currentChartType = 'area';
         updateChart();
     });
-
     barChartBtn.addEventListener('click', () => {
         currentChartType = 'bar';
         updateChart();
     });
-
     resetZoomBtn.addEventListener('click', () => {
         if (healthChart) {
             healthChart.resetZoom();
         }
     });
 
-    M.FormSelect.init(categoryFilter);
-    M.FormSelect.init(diseaseFilter);
-
+    // Initial chart load
     updateChart();
 });

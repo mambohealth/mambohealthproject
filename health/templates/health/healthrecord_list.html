@@ -3,15 +3,17 @@
 {% block content %}
 <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">My Health Records</h1>
-    <form method="get" class="mb-4 flex flex-wrap gap-2 items-center">
+
+    <!-- Filter Section (shared for chart and table) -->
+    <form id="health-filter-form" method="get" class="mb-4 flex flex-wrap gap-2 items-center">
         <input type="text" name="search" value="{{ search }}" placeholder="Search..." class="border rounded px-2 py-1" />
-        <select name="category" class="border rounded px-2 py-1">
+        <select name="category" id="categoryFilter" class="border rounded px-2 py-1">
             <option value="">All Health Categories</option>
             {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if cat.id|stringformat:'s' == selected_category %}selected{% endif %}>{{ cat.name }}</option>
             {% endfor %}
         </select>
-        <select name="disease_category" class="border rounded px-2 py-1">
+        <select name="disease_category" id="diseaseFilter" class="border rounded px-2 py-1">
             <option value="">All Disease Categories</option>
             {% for dcat in disease_categories %}
                 <option value="{{ dcat.id }}" {% if dcat.id|stringformat:'s' == selected_disease_category %}selected{% endif %}>{{ dcat.name }}</option>
@@ -25,8 +27,13 @@
             <option value="data" {% if sort == 'data' %}selected{% endif %}>Value (Low-High)</option>
             <option value="-data" {% if sort == '-data' %}selected{% endif %}>Value (High-Low)</option>
         </select>
+        <label for="out_of_range_checkbox" class="flex items-center space-x-2">
+            <input type="checkbox" name="out_of_range" id="out_of_range_checkbox" value="on" {% if out_of_range %}checked{% endif %} class="border rounded">
+            <span>Out of Range Only</span>
+        </label>
         <button type="submit" class="bg-gray-200 px-4 py-2 rounded">Filter</button>
     </form>
+
     <div class="flex flex-wrap gap-2 mb-4">
         <a href="{% url 'health:healthrecord_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded">Add New Record</a>
         <a href="{% url 'health:healthrecord_upload_json' %}" class="bg-green-500 text-white px-4 py-2 rounded">Upload JSON</a>
@@ -133,8 +140,43 @@
             <a href="?page={{ page_obj.next_page_number }}&search={{ search }}&sort={{ sort }}" class="px-3 py-1 bg-gray-200 rounded-r">Next &raquo;</a>
         {% endif %}
     </div>
+
+    <!-- Health Chart Section -->
+    <div class="mb-8">
+        <div class="chart-container" style="position: relative; height:50vh; width:70vw">
+            <canvas id="healthChart"></canvas>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-4">
+            <button id="lineChartBtn" class="btn">Line</button>
+            <button id="areaChartBtn" class="btn">Area</button>
+            <button id="barChartBtn" class="btn">Bar</button>
+            <button id="resetZoomBtn" class="btn">Reset Zoom</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <script type="text/javascript" src="/static/js/health_chart.js"></script>
     <script type="text/javascript" src="/static/js/health_inline.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var filterForm = document.getElementById('health-filter-form');
+        
+        // Auto-submit form when any filter dropdown or checkbox changes
+        ['categoryFilter', 'diseaseFilter', 'sort', 'out_of_range_checkbox'].forEach(function(id) {
+            var element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', function() {
+                    filterForm.submit();
+                });
+            }
+        });
+      });
+    </script>
 {% endblock %}

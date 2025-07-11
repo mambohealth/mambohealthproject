@@ -22,6 +22,5 @@ urlpatterns = [
     path('medication/', views.medication_list, name='medication_list'),
     path('medication/add/', views.medication_create, name='medication_create'),
     path('medication/<int:pk>/delete/', views.medication_delete, name='medication_delete'),
-    path('charts/', views.healthrecord_chart, name='healthrecord_chart'),
     path('chart-data/', views.healthrecord_chart_data, name='healthrecord_chart_data'),
 ]
