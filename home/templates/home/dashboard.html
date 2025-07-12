@@ -28,52 +28,60 @@
     <!-- Main Chart Panels -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div class="chart-panel bg-white p-4 rounded-lg shadow">
-            <h2 class="text-xl font-bold mb-4">Records by Category</h2>
-            <div class="flex flex-col lg:flex-row lg:flex-wrap gap-4 mb-4">
-                <div>
-                    <label for="healthCategoryFilter" class="block text-sm font-medium text-gray-700">Health Category:</label>
-                    <select id="healthCategoryFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                        <option value="">All Categories</option>
-                        {% for category in health_categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label for="diseaseCategoryFilter" class="block text-sm font-medium text-gray-700">Disease Category:</label>
-                    <select id="diseaseCategoryFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                        <option value="">All Diseases</option>
-                        {% for disease in disease_categories %}
-                        <option value="{{ disease.id }}">{{ disease.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700">Type:</label>
-                    <label class="text-sm">
-                        <input type="radio" name="records_by_category_type" value="count" checked class="mr-1">
-                        Count
-                    </label>
-                    <label class="text-sm">
-                        <input type="radio" name="records_by_category_type" value="latest" class="mr-1">
-                        Latest
-                    </label>
-                    <label class="text-sm">
-                        <input type="radio" name="records_by_category_type" value="individual" class="mr-1">
-                        Individual
-                    </label>
-                </div>
-                <div class="flex items-end space-x-2">
-                    <button class="bg-gray-200 px-3 py-1 rounded text-sm" data-days="7">Last 7 Days</button>
-                    <button class="bg-gray-200 px-3 py-1 rounded text-sm" data-days="30">Last 30 Days</button>
-                    <button class="bg-gray-200 px-3 py-1 rounded text-sm" data-days="90">Last 90 Days</button>
-                    <input type="date" id="recordsByCategoryStartDate" class="border rounded px-2 py-1 text-sm">
-                    <span class="text-sm">to</span>
-                    <input type="date" id="recordsByCategoryEndDate" class="border rounded px-2 py-1 text-sm">
-                    <button id="recordsByCategoryApplyDate" class="bg-blue-500 text-white px-3 py-1 rounded text-sm">Apply</button>
+            <div class="flex flex-col gap-2 mb-2">
+                <h2 class="text-xl font-bold">Records by Category</h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div>
+                        <label for="healthCategoryFilter" class="block text-xs font-medium text-gray-700">Health Category:</label>
+                        <select id="healthCategoryFilter" class="mt-1 block w-full pl-2 pr-6 py-1 text-xs border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded">
+                            <option value="">All Categories</option>
+                            {% for category in health_categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="diseaseCategoryFilter" class="block text-xs font-medium text-gray-700">Disease Category:</label>
+                        <select id="diseaseCategoryFilter" class="mt-1 block w-full pl-2 pr-6 py-1 text-xs border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded">
+                            <option value="">All Diseases</option>
+                            {% for disease in disease_categories %}
+                            <option value="{{ disease.id }}">{{ disease.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <label class="text-xs font-medium text-gray-700">Type:</label>
+                        <label class="text-xs">
+                            <input type="radio" name="records_by_category_type" value="count" checked class="mr-1">
+                            Count
+                        </label>
+                        <label class="text-xs">
+                            <input type="radio" name="records_by_category_type" value="latest" class="mr-1">
+                            Latest
+                        </label>
+                        <label class="text-xs">
+                            <input type="radio" name="records_by_category_type" value="individual" class="mr-1">
+                            Individual
+                        </label>
+                    </div>
+                    <div class="flex items-end gap-1">
+                        <button class="bg-gray-200 px-2 py-1 rounded text-xs" data-days="7">7d</button>
+                        <button class="bg-gray-200 px-2 py-1 rounded text-xs" data-days="30">30d</button>
+                        <button class="bg-gray-200 px-2 py-1 rounded text-xs" data-days="90">90d</button>
+                        <input type="date" id="recordsByCategoryStartDate" class="border rounded px-1 py-1 text-xs">
+                        <span class="text-xs">to</span>
+                        <input type="date" id="recordsByCategoryEndDate" class="border rounded px-1 py-1 text-xs">
+                        <button id="recordsByCategoryApplyDate" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Apply</button>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <input type="checkbox" id="outOfRangeOnlyToggle">
+                        <label for="outOfRangeOnlyToggle" class="text-xs">Show Only Out-of-Range</label>
+                    </div>
                 </div>
             </div>
-            <canvas id="recordsByCategoryChart"></canvas>
+            <div style="position:relative;height:350px;overflow:hidden;">
+                <canvas id="recordsByCategoryChart" style="width:100%;height:100%;display:block;padding-bottom:40px;"></canvas>
+            </div>
         </div>
         <div class="chart-panel bg-white p-4 rounded-lg shadow">
             <h2 class="text-xl font-bold mb-4">Symptom Severity Trends</h2>

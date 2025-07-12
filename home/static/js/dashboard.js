@@ -1,42 +1,11 @@
 document.addEventListener('DOMContentLoaded', function () {
     // State variables
     let outOfRangeOnly = false;
-    let chartType = 'line';
+    // Chart type is always 'line'
     let recordsByCategoryChartInstance = null;
 
-    // Add Out-of-Range toggle checkbox
-    const outOfRangeToggleDiv = document.createElement('div');
-    outOfRangeToggleDiv.className = 'mb-2';
-    outOfRangeToggleDiv.innerHTML = `
-        <label class="mr-2">Show Only Out-of-Range</label>
-        <input type="checkbox" id="outOfRangeOnlyToggle">
-    `;
-    document.querySelector('.chart-panel').prepend(outOfRangeToggleDiv);
-    document.getElementById('outOfRangeOnlyToggle').addEventListener('change', function(e) {
-        outOfRangeOnly = e.target.checked;
-        updateRecordsByCategoryChart();
-    });
-
-    // Add Chart Type toggle dropdown
-    let existingChartTypeToggle = document.getElementById('chartTypeToggle');
-    if (!existingChartTypeToggle) {
-        const chartTypeToggleDiv = document.createElement('div');
-        chartTypeToggleDiv.className = 'mb-2';
-        chartTypeToggleDiv.innerHTML = `
-            <label class="mr-2">Chart Type:</label>
-            <select id="chartTypeToggle" class="border rounded px-2 py-1">
-                <option value="line">Line</option>
-                <option value="area">Area</option>
-                <option value="bar">Bar</option>
-            </select>
-        `;
-        document.querySelector('.chart-panel').prepend(chartTypeToggleDiv);
-        existingChartTypeToggle = document.getElementById('chartTypeToggle');
-    }
-    existingChartTypeToggle.addEventListener('change', function(e) {
-        chartType = e.target.value;
-        updateRecordsByCategoryChart();
-    });
+   
+    // Chart type selection removed; chart will always be line
 
     // Fetch KPI data
     fetch('/health/api/dashboard-kpi-data/')
@@ -88,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         data = filtered;
                     }
 
-
                     const titleMap = new Map();
                     data.forEach(item => {
                         const title = item.title || 'Untitled';
@@ -117,11 +85,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         ds.pointRadius.push(item.out_of_range ? 6 : 3);
                     });
 
-                    datasets = Array.from(titleMap.values()).map(ds => ({
-                        ...ds,
-                        pointBackgroundColor: ds.pointBackgroundColor,
-                        pointRadius: ds.pointRadius,
-                    }));
+                    // Only include titles with data in legend
+                    datasets = Array.from(titleMap.values())
+                        .filter(ds => ds.data.length > 0)
+                        .map(ds => ({
+                            ...ds,
+                            pointBackgroundColor: ds.pointBackgroundColor,
+                            pointRadius: ds.pointRadius,
+                        }));
 
                 } else {
                     const categoryMap = new Map();
@@ -132,8 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 label: cat,
                                 data: [],
                                 borderColor: getRandomColor(),
-                                backgroundColor: chartType === 'area' ? 'rgba(0,0,255,0.2)' : 'rgba(0,0,0,0)',
-                                fill: chartType === 'area',
+                                backgroundColor: 'rgba(0,0,0,0)',
+                                fill: false,
                                 tension: 0.3
                             });
                         }
@@ -146,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 recordsByCategoryChartInstance = new Chart(ctx, {
-                    type: dataType === 'individual' ? 'line' : (chartType === 'bar' ? 'bar' : chartType),
+                    type: 'line',
                     data: { datasets },
                     options: {
                         responsive: true,
@@ -208,6 +179,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initial chart render
     renderRecordsByCategoryChart();
+
+    // Use the out-of-range checkbox from the template
+    document.getElementById('outOfRangeOnlyToggle')?.addEventListener('change', function(e) {
+        outOfRangeOnly = e.target.checked;
+        updateRecordsByCategoryChart();
+    });
 
     // Type filter
     document.querySelectorAll('input[name="records_by_category_type"]').forEach(radio => {
