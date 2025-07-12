@@ -1,7 +1,19 @@
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+# --- Dashboard Homepage View ---
+@login_required
+def dashboard(request):
+    health_categories = HealthCategory.objects.all()
+    disease_categories = DiseaseCategory.objects.all()
+    return render(request, 'home/dashboard.html', {
+        'health_categories': health_categories,
+        'disease_categories': disease_categories,
+    })
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from .models import HealthRecord, HealthCategory, DiseaseCategory, SymptomLog, Medication, HealthRecordComment
-from django.db.models import Q, F, Count
+from django.db.models import Q, F, Count, Avg
 from django.db.models.functions import Cast
 from django.db.models.fields import FloatField
 from django.shortcuts import render, redirect, get_object_or_404
@@ -12,6 +24,204 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
+from datetime import date, timedelta
+import json
+
+# --- JSON Upload Views ---
+
+@login_required
+def healthrecord_upload_json(request):
+    if request.method == 'POST':
+        json_file = request.FILES.get('json_file')
+        if json_file:
+            try:
+                data = json.load(json_file)
+                request.session['json_data'] = data
+                return redirect('health:healthrecord_confirm_json')
+            except json.JSONDecodeError:
+                messages.error(request, 'Invalid JSON file.')
+    return render(request, 'health/healthrecord_upload_json.html')
+
+@login_required
+def healthrecord_confirm_json(request):
+    json_data = request.session.get('json_data')
+    if not json_data:
+        return redirect('health:healthrecord_upload_json')
+
+    if request.method == 'POST':
+        for item in json_data:
+            HealthRecord.objects.create(
+                user=request.user,
+                date=item.get('date'),
+                title=item.get('title'),
+                data=item.get('data'),
+                unit=item.get('unit'),
+                normal_min=item.get('normal_min'),
+                normal_max=item.get('normal_max')
+            )
+        del request.session['json_data']
+        messages.success(request, 'Successfully imported health records.')
+        return redirect('health:healthrecord_list')
+
+    return render(request, 'health/healthrecord_confirm_json.html', {'data': json_data})
+
+# --- Dashboard Data Endpoints ---
+
+@login_required
+def dashboard_kpi_data(request):
+    user = request.user
+    today = date.today()
+    start_of_month = today.replace(day=1)
+
+    total_records = HealthRecord.objects.filter(user=user, date__gte=start_of_month).count()
+    
+    avg_severity = SymptomLog.objects.filter(user=user, date__gte=start_of_month).aggregate(avg_sev=Avg('severity'))['avg_sev'] or 0
+
+    # Placeholder for medication adherence
+    med_adherence = 95.5 # Placeholder value
+
+    data = {
+        'total_records_this_month': total_records,
+        'average_symptom_severity': round(avg_severity, 1),
+        'medication_adherence_rate': med_adherence,
+    }
+    return JsonResponse(data)
+
+from django.db.models import Max, Min
+@login_required
+def records_by_category_data(request):
+    user = request.user
+    data_type = request.GET.get('data_type', 'count') # 'count', 'latest', 'average'
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    category_filter_id = request.GET.get('health_category_id')
+    disease_filter_id = request.GET.get('disease_category_id')
+
+    records = HealthRecord.objects.filter(user=user)
+
+    if category_filter_id:
+        records = records.filter(category_id=category_filter_id)
+    if disease_filter_id:
+        records = records.filter(disease_category_id=disease_filter_id)
+
+    if start_date_str:
+        try:
+            start_date = date.fromisoformat(start_date_str)
+            records = records.filter(date__gte=start_date)
+        except ValueError:
+            pass # Invalid date, ignore filter
+    if end_date_str:
+        try:
+            end_date = date.fromisoformat(end_date_str)
+            records = records.filter(date__lte=end_date)
+        except ValueError:
+            pass # Invalid date, ignore filter
+    
+    # Default to last 30 days if no date range is specified
+    if not start_date_str and not end_date_str:
+        records = records.filter(date__gte=date.today() - timedelta(days=30))
+
+    # Prepare data for time series
+    # Group by date and category, then apply aggregation based on data_type
+    if data_type == 'count':
+        aggregated_data = records.values('date', 'category__name').annotate(value=Count('id')).order_by('date', 'category__name')
+    elif data_type == 'average':
+        aggregated_data = records.exclude(data__isnull=True).exclude(data__exact='') \
+            .annotate(data_float=Cast('data', FloatField())) \
+            .values('date', 'category__name').annotate(value=Avg('data_float')).order_by('date', 'category__name')
+    elif data_type == 'latest':
+        # For 'latest' in a time series, we need the latest record's data for each category on each day
+        # This is more complex. A simpler approach for time series might be to just show the latest value recorded on that day for that category.
+        # Let's get the latest record for each category on each date.
+        # This will return multiple entries per day if multiple categories have data.
+        # We need to ensure we get the *latest* data point for each category on a given day.
+        # This requires a subquery or a window function (Django 3.2+).
+        # For simplicity, let's fetch all relevant records and process in Python for 'latest' time series.
+        # This might be inefficient for very large datasets.
+        all_records = records.order_by('date', 'category__name', '-id').values('date', 'category__name', 'data', 'title')
+        
+        processed_data = defaultdict(lambda: {})
+        for rec in all_records:
+            date_str = rec['date'].strftime('%Y-%m-%d')
+            category_name = rec['category__name']
+            if category_name not in processed_data[date_str]:
+                try:
+                    value = float(rec['data'])
+                    processed_data[date_str][category_name] = {'value': value, 'title': rec['title']}
+                except (ValueError, TypeError):
+                    pass # Skip invalid data
+        
+        result = []
+        for date_str, categories_data in processed_data.items():
+            for category_name, data_point in categories_data.items():
+                result.append({
+                    'date': date_str,
+                    'category__name': category_name,
+                    'value': data_point['value'],
+                    'title': data_point['title'] # Include title for tooltip
+                })
+        # Sort by date for chart rendering
+        data = sorted(result, key=lambda x: x['date'])
+        return JsonResponse(list(data), safe=False)
+    elif data_type == 'individual':
+        individual_data = []
+        for r in records.exclude(data__isnull=True).exclude(data__exact=''):
+            try:
+                value = float(r.data)
+                min_val = float(r.normal_min) if r.normal_min not in [None, ''] else None
+                max_val = float(r.normal_max) if r.normal_max not in [None, ''] else None
+                out_of_range = False
+                if min_val is not None and value < min_val:
+                    out_of_range = True
+                if max_val is not None and value > max_val:
+                    out_of_range = True
+                comments = '\n'.join([c.comment for c in r.comments.all()]) if hasattr(r, 'comments') else ''
+                individual_data.append({
+                    'date': r.date.strftime('%Y-%m-%d'),
+                    'category__name': r.category.name if r.category else 'Uncategorized',
+                    'value': value,
+                    'title': r.title,
+                    'out_of_range': out_of_range,
+                    'normal_min': r.normal_min,
+                    'normal_max': r.normal_max,
+                    'comments': comments,
+                })
+            except (ValueError, TypeError):
+                continue
+        data = sorted(individual_data, key=lambda x: x['date'])
+        return JsonResponse(list(data), safe=False)
+    else:
+        return JsonResponse({'error': 'Invalid data_type'}, status=400)
+    
+    return JsonResponse(list(aggregated_data), safe=False)
+
+@login_required
+def symptom_severity_trends_data(request):
+    user = request.user
+    days = int(request.GET.get('days', 30))
+    start_date = date.today() - timedelta(days=days)
+
+    data = (SymptomLog.objects.filter(user=user, date__gte=start_date)
+        .order_by('date')
+        .values('date', 'severity'))
+
+    return JsonResponse(list(data), safe=False)
+
+@login_required
+def medication_adherence_data(request):
+    user = request.user
+    days = int(request.GET.get('days', 30))
+    start_date = date.today() - timedelta(days=days)
+    
+    # This is a placeholder logic. A real implementation would require a more
+    # sophisticated model to track taken vs. scheduled doses.
+    # For now, we simulate some data.
+    adherence_data = [
+        {'date': (start_date + timedelta(days=i)).strftime('%Y-%m-%d'), 'adherence': 100 if i % 7 != 6 else 50}
+        for i in range(days)
+    ]
+    
+    return JsonResponse(adherence_data, safe=False)
 
 # --- Chart Data AJAX Endpoint ---
 @login_required
@@ -36,11 +246,9 @@ def healthrecord_chart_data(request):
             Q(data__icontains=search_query)
         )
 
-    # Exclude records with non-numeric data before attempting to filter by value
     records = records.exclude(data__isnull=True).exclude(data__exact='')
 
     if out_of_range_filter:
-        # This corrected query explicitly checks that a boundary exists before comparing against it.
         records = records.annotate(
             data_float=Cast('data', FloatField()),
             normal_min_float=Cast('normal_min', FloatField()),
@@ -64,29 +272,20 @@ def healthrecord_chart_data(request):
 
         try:
             value = float(r.data)
+            
+            out_of_range = False
             min_val = float(r.normal_min) if r.normal_min is not None and r.normal_min != '' else None
             max_val = float(r.normal_max) if r.normal_max is not None and r.normal_max != '' else None
-            out_of_range = False
-            if min_val is not None and value < min_val:
-                out_of_range = True
-            if max_val is not None and value > max_val:
-                out_of_range = True
-            # Only include out-of-range values if filter is active
-            if out_of_range_filter:
-                if out_of_range:
-                    datasets[title]['data'].append({
-                        'x': r.date.strftime('%Y-%m-%d'),
-                        'y': value,
-                        'out_of_range': out_of_range,
-                        'comments': '\n'.join([c.comment for c in r.comments.all()])
-                    })
-            else:
-                datasets[title]['data'].append({
-                    'x': r.date.strftime('%Y-%m-%d'),
-                    'y': value,
-                    'out_of_range': out_of_range,
-                    'comments': '\n'.join([c.comment for c in r.comments.all()])
-                })
+
+            if min_val is not None and value < min_val: out_of_range = True
+            if max_val is not None and value > max_val: out_of_range = True
+
+            datasets[title]['data'].append({
+                'x': r.date.strftime('%Y-%m-%d'),
+                'y': value,
+                'out_of_range': out_of_range,
+                'comments': '\n'.join([c.comment for c in r.comments.all()])
+            })
         except (TypeError, ValueError):
             continue
 
@@ -139,7 +338,7 @@ def symptomlog_delete(request, pk):
     if request.method == 'POST':
         log.delete()
         return redirect('health:symptomlog_list')
-    return render(request, 'health/confirm_delete.html', {'object': log, 'type': 'Symptom Log'})
+    return render(request, 'health/symptomlog_confirm_delete.html', {'object': log})
 
 # Medication Delete
 @login_required
@@ -148,7 +347,7 @@ def medication_delete(request, pk):
     if request.method == 'POST':
         med.delete()
         return redirect('health:medication_list')
-    return render(request, 'health/confirm_delete.html', {'object': med, 'type': 'Medication'})
+    return render(request, 'health/medication_confirm_delete.html', {'object': med})
 
 # Symptom Log Views
 @login_required
@@ -254,7 +453,7 @@ def healthrecord_list(request):
         records = records.filter(disease_category_id=disease_category_id)
     
     if out_of_range:
-        records = records.exclude(data__isnull=True).exclude(data__exact='').exclude(data='None').annotate(
+        records = records.exclude(data__isnull=True).exclude(data__exact='').annotate(
             data_float=Cast('data', FloatField()),
             normal_min_float=Cast('normal_min', FloatField()),
             normal_max_float=Cast('normal_max', FloatField())

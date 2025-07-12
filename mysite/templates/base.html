@@ -35,6 +35,18 @@
     </head>
 
     <body class="{% block body_class %}{% endblock %}">
+        <nav class="bg-gray-900 text-white px-6 py-3 shadow-md">
+  <div class="container mx-auto flex justify-between items-center">
+    <div class="font-extrabold text-xl text-blue-300">MamboHealth</div>
+    <div class="flex space-x-6">
+      <a href="/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Home</a>
+      <a href="/health/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Health Records</a>
+      <a href="/health/symptoms/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Symptom Log</a>
+      <a href="/health/medications/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Medication</a>
+      <a href="/accounts/logout/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Logout</a>
+    </div>
+  </div>
+</nav>
         {% wagtailuserbar %}
 
         {% block content %}{% endblock %}

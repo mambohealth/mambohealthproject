@@ -1,0 +1,13 @@
+.kpi-card {
+    transition: transform 0.2s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+}
+
+.chart-panel {
+    min-height: 300px;
+    max-height: 450px; /* Adjusted for more space */
+    padding-bottom: 20px; /* Add padding to the bottom for x-axis labels */
+}
