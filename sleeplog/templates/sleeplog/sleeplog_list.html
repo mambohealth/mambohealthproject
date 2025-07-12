@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold my-4">Sleep Logs</h1>
+
+    <div class="my-8">
+        <h2 class="text-xl font-semibold mb-2">Your Sleep History</h2>
+        <div class="overflow-x-auto bg-white shadow-md rounded">
+            <table class="min-w-full table-auto">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="px-4 py-2">Date</th>
+                        <th class="px-4 py-2">Duration (hours)</th>
+                        <th class="px-4 py-2">Quality (1-10)</th>
+                        <th class="px-4 py-2">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr class="border-b">
+                        <td class="px-4 py-2">{{ log.date }}</td>
+                        <td class="px-4 py-2">{{ log.duration }}</td>
+                        <td class="px-4 py-2">{{ log.quality }}</td>
+                        <td class="px-4 py-2">{{ log.notes|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4">No sleep logs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination mt-4">
+            <span class="step-links">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1">&laquo; first</a>
+                    <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                {% endif %}
+
+                <span class="current">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}">next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="my-8">
+        <button id="add-log-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            Add New Sleep Log
+        </button>
+        <div id="add-log-form" class="hidden mt-4">
+            <h2 class="text-xl font-semibold mb-2">Add New Sleep Log</h2>
+            <form method="post" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Save Log
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('add-log-btn').addEventListener('click', function() {
+        var form = document.getElementById('add-log-form');
+        if (form.classList.contains('hidden')) {
+            form.classList.remove('hidden');
+            this.textContent = 'Cancel';
+            this.classList.remove('bg-green-500', 'hover:bg-green-700');
+            this.classList.add('bg-red-500', 'hover:bg-red-700');
+        } else {
+            form.classList.add('hidden');
+            this.textContent = 'Add New Sleep Log';
+            this.classList.remove('bg-red-500', 'hover:bg-red-700');
+            this.classList.add('bg-green-500', 'hover:bg-green-700');
+        }
+    });
+</script>
+{% endblock %}
