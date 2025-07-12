@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold my-4">Nutrition Logs</h1>
+
+    <div class="my-8">
+        <h2 class="text-xl font-semibold mb-2">Your Nutrition History</h2>
+        <div class="overflow-x-auto bg-white shadow-md rounded">
+            <table class="min-w-full table-auto">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="px-4 py-2">Date</th>
+                        <th class="px-4 py-2">Meal Type</th>
+                        <th class="px-4 py-2">Photo</th>
+                        <th class="px-4 py-2">Calories</th>
+                        <th class="px-4 py-2">Protein (g)</th>
+                        <th class="px-4 py-2">Carbs (g)</th>
+                        <th class="px-4 py-2">Fat (g)</th>
+                        <th class="px-4 py-2">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr class="border-b">
+                        <td class="px-4 py-2">{{ log.date }}</td>
+                        <td class="px-4 py-2">{{ log.get_meal_type_display }}</td>
+                        <td class="px-4 py-2">
+                            {% if log.meal_photo %}
+                                <img src="{{ log.meal_photo.url }}" alt="Meal photo" class="h-16 w-16 object-cover rounded">
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2">{{ log.calories|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.protein|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.carbohydrates|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.fat|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.notes|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">No nutrition logs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination mt-4">
+            <span class="step-links">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1">&laquo; first</a>
+                    <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                {% endif %}
+                <span class="current">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                </span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}">next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="my-8">
+        <button id="add-log-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            Add New Nutrition Log
+        </button>
+        <div id="add-log-form" class="hidden mt-4">
+            <h2 class="text-xl font-semibold mb-2">Add New Nutrition Log</h2>
+            <p class="text-sm text-gray-600 mb-4">Upload a photo or add notes about your meal. Our AI will try to fill in the nutritional details for you if you leave them blank.</p>
+            <form method="post" enctype="multipart/form-data" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Save Log
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('add-log-btn').addEventListener('click', function() {
+        var form = document.getElementById('add-log-form');
+        if (form.classList.contains('hidden')) {
+            form.classList.remove('hidden');
+            this.textContent = 'Cancel';
+            this.classList.remove('bg-green-500', 'hover:bg-green-700');
+            this.classList.add('bg-red-500', 'hover:bg-red-700');
+        } else {
+            form.classList.add('hidden');
+            this.textContent = 'Add New Nutrition Log';
+            this.classList.remove('bg-red-500', 'hover:bg-red-700');
+            this.classList.add('bg-green-500', 'hover:bg-green-700');
+        }
+    });
+</script>
+{% endblock %}

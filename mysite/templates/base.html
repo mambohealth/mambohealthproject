@@ -44,6 +44,7 @@
       <a href="/health/symptoms/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Symptom Log</a>
       <a href="/health/medications/" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Medication</a>
       <a href="{% url 'sleeplog_list' %}" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Sleep Log</a>
+      <a href="{% url 'nutritionlog_list' %}" class="text-gray-100 hover:text-blue-400 transition duration-300 ease-in-out">Nutrition Log</a>
     </div>
     <div class="flex items-center space-x-4">
         {% if user.is_authenticated %}

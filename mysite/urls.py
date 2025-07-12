@@ -17,6 +17,7 @@ urlpatterns = [
     path("search/", search_views.search, name="search"),
     path("health/", include("health.urls", namespace="health")),
     path("sleeplog/", include("sleeplog.urls")),
+    path("nutritionlog/", include("nutritionlog.urls")),
     path("accounts/", include("allauth.urls")),
     path("home/", include("home.urls", namespace="home")),
 ]

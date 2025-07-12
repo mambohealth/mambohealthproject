@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "search",
     "health",
     "sleeplog",
+    "nutritionlog",
     # allauth apps
     "django.contrib.sites",
     "allauth",
