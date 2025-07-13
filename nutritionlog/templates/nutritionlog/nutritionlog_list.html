@@ -73,7 +73,23 @@
             <p class="text-sm text-gray-600 mb-4">Upload a photo or add notes about your meal. Our AI will try to fill in the nutritional details for you if you leave them blank.</p>
             <form method="post" enctype="multipart/form-data" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
                 {% csrf_token %}
-                {{ form|crispy }}
+                {% for field in form %}
+                    {% if field.name == 'meal_type' %}
+                        <div class="mb-4">
+                            <div class="relative">
+                                {{ field|as_crispy_field }}
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path d="M5.25 7.5l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        {{ field|as_crispy_field }}
+                    {% endif %}
+                {% endfor %}
+
                 <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                     Save Log
                 </button>

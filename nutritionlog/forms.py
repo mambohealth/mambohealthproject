@@ -15,7 +15,16 @@ class NutritionLogForm(forms.ModelForm):
             'fat'
         ]
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
+            'date': forms.DateInput(attrs={'type': 'date'}),            
+            'meal_type': forms.Select(attrs={
+                'class': 'block appearance-none w-full bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500'
+            }),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+            'meal_photo': forms.ClearableFileInput(attrs={'class': 'form-input'}),
+            'calories': forms.NumberInput(attrs={'class': 'form-input'}),
+            'protein': forms.NumberInput(attrs={'class': 'form-input'}),
+            'carbohydrates': forms.NumberInput(attrs={'class': 'form-input'}),
+            'fat': forms.NumberInput(attrs={'class': 'form-input'}),
         }
 
     def __init__(self, *args, **kwargs):
