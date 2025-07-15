@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold my-4">My Saved Foods</h1>
+    <a href="{% url 'create_food' %}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-4 inline-block">
+        Add New Food
+    </a>
+    <div class="overflow-x-auto bg-white shadow-md rounded">
+        <table class="min-w-full table-auto">
+            <thead class="bg-gray-200">
+                <tr>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Calories</th>
+                    <th class="px-4 py-2">Protein (g)</th>
+                    <th class="px-4 py-2">Carbs (g)</th>
+                    <th class="px-4 py-2">Fat (g)</th>
+                    <th class="px-4 py-2">Omega-3 (mg)</th>
+                    <th class="px-4 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for food in foods %}
+                <tr class="border-b">
+                    <td class="px-4 py-2">{{ food.name }}</td>
+                    <td class="px-4 py-2">{{ food.calories|default_if_none:"-" }}</td>
+                    <td class="px-4 py-2">{{ food.protein|default_if_none:"-" }}</td>
+                    <td class="px-4 py-2">{{ food.carbohydrates|default_if_none:"-" }}</td>
+                    <td class="px-4 py-2">{{ food.fat|default_if_none:"-" }}</td>
+                    <td class="px-4 py-2">{{ food.omega3_epa_dha|default_if_none:"-" }}</td>
+                    <td class="px-4 py-2">
+                        <a href="{% url 'edit_food' food.id %}" class="text-blue-500 hover:text-blue-700">Edit</a>
+                        <a href="{% url 'delete_food' food.id %}" class="text-red-500 hover:text-red-700 ml-2">Delete</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">No saved foods found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

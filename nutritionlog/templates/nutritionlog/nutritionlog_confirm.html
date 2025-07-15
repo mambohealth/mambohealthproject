@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold my-4">Confirm Nutrition Log</h1>
+    <p class="my-2">We have analyzed the photo and the name of the meal. If the name is incorrect, please correct it and update the nutrition data.</p>
+
+    <div class="my-4">
+        <form method="post" action="{% url 'update_nutrition_name' %}" class="flex items-center">
+            {% csrf_token %}
+            <input type="text" name="new_name" value="{{ form_data.name }}" class="form-input w-full rounded-l-md">
+            <button type="submit" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-r-md">
+                Update Name & Nutrition
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Photo Analysis Card -->
+        <div class="bg-white shadow-md rounded p-4">
+            <h2 class="text-xl font-semibold mb-2">From Photo Analysis</h2>
+            {% if photo_data %}
+            <ul>
+                <li>Calories: {{ photo_data.calories }}</li>
+                <li>Protein: {{ photo_data.protein }} g</li>
+                <li>Carbohydrates: {{ photo_data.carbohydrates }} g</li>
+                <li>Fat: {{ photo_data.fat }} g</li>
+                <li>Saturated Fat: {{ photo_data.saturated_fat }} g</li>
+                <li>Cholesterol: {{ photo_data.cholesterol }} mg</li>
+                <li>Sodium: {{ photo_data.sodium }} mg</li>
+                <li>Potassium: {{ photo_data.potassium }} mg</li>
+                <li>Fiber: {{ photo_data.fiber }} g</li>
+                <li>Sugars: {{ photo_data.sugars }} g</li>
+                <li>Vitamin C: {{ photo_data.vitamin_c }} mg</li>
+                <li>Omega-3 (EPA/DHA): {{ photo_data.omega3_epa_dha }} mg</li>
+            </ul>
+            <form method="post" action="{% url 'save_nutrition_log' %}">
+                {% csrf_token %}
+                <input type="hidden" name="source" value="photo">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-4">
+                    Use Photo Data
+                </button>
+            </form>
+            {% else %}
+            <p>Could not extract nutrition data from the photo.</p>
+            {% endif %}
+        </div>
+
+        <!-- Typical Data Card -->
+        <div class="bg-white shadow-md rounded p-4">
+            <h2 class="text-xl font-semibold mb-2">From Meal Name (Typical Data)</h2>
+            {% if typical_data %}
+            <ul>
+                <li>Calories: {{ typical_data.calories }}</li>
+                <li>Protein: {{ typical_data.protein }} g</li>
+                <li>Carbohydrates: {{ typical_data.carbohydrates }} g</li>
+                <li>Fat: {{ typical_data.fat }} g</li>
+                <li>Saturated Fat: {{ typical_data.saturated_fat }} g</li>
+                <li>Cholesterol: {{ typical_data.cholesterol }} mg</li>
+                <li>Sodium: {{ typical_data.sodium }} mg</li>
+                <li>Potassium: {{ typical_data.potassium }} mg</li>
+                <li>Fiber: {{ typical_data.fiber }} g</li>
+                <li>Sugars: {{ typical_data.sugars }} g</li>
+                <li>Vitamin C: {{ typical_data.vitamin_c }} mg</li>
+                <li>Omega-3 (EPA/DHA): {{ typical_data.omega3_epa_dha }} mg</li>
+            </ul>
+            <form method="post" action="{% url 'save_nutrition_log' %}">
+                {% csrf_token %}
+                <input type="hidden" name="source" value="typical">
+                <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4">
+                    Use Typical Data
+                </button>
+            </form>
+            {% else %}
+            <p>Could not find typical nutrition data for the meal name.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

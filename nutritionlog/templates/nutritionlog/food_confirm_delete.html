@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold my-4">Delete Food</h1>
+    <p>Are you sure you want to delete the food: <strong>{{ food.name }}</strong>?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-4">
+            Confirm Delete
+        </button>
+        <a href="{% url 'food_list' %}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded mt-4">
+            Cancel
+        </a>
+    </form>
+</div>
+{% endblock %}

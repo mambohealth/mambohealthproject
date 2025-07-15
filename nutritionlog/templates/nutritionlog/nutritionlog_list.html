@@ -3,7 +3,12 @@
 
 {% block content %}
 <div class="container mx-auto px-4">
-    <h1 class="text-2xl font-bold my-4">Nutrition Logs</h1>
+    <div class="flex justify-between items-center my-4">
+        <h1 class="text-2xl font-bold">Nutrition Logs</h1>
+        <a href="{% url 'food_list' %}" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            My Saved Foods
+        </a>
+    </div>
 
     <div class="my-8">
         <h2 class="text-xl font-semibold mb-2">Your Nutrition History</h2>
@@ -13,12 +18,23 @@
                     <tr>
                         <th class="px-4 py-2">Date</th>
                         <th class="px-4 py-2">Meal Type</th>
+                        <th class="px-4 py-2">Name</th>
                         <th class="px-4 py-2">Photo</th>
                         <th class="px-4 py-2">Calories</th>
                         <th class="px-4 py-2">Protein (g)</th>
                         <th class="px-4 py-2">Carbs (g)</th>
                         <th class="px-4 py-2">Fat (g)</th>
+                        <th class="px-4 py-2">Saturated Fat (g)</th>
+                        <th class="px-4 py-2">Cholesterol (mg)</th>
+                        <th class="px-4 py-2">Sodium (mg)</th>
+                        <th class="px-4 py-2">Potassium (mg)</th>
+                        <th class="px-4 py-2">Fiber (g)</th>
+                        <th class="px-4 py-2">Sugars (g)</th>
+                        <th class="px-4 py-2">Vitamin C (mg)</th>
+                        <th class="px-4 py-2">Omega-3 (g)</th>
                         <th class="px-4 py-2">Notes</th>
+                        <th class="px-4 py-2">Data Source</th>
+                        <th class="px-4 py-2">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,6 +42,7 @@
                     <tr class="border-b">
                         <td class="px-4 py-2">{{ log.date }}</td>
                         <td class="px-4 py-2">{{ log.get_meal_type_display }}</td>
+                        <td class="px-4 py-2">{{ log.name|default:"-" }}</td>
                         <td class="px-4 py-2">
                             {% if log.meal_photo %}
                                 <img src="{{ log.meal_photo.url }}" alt="Meal photo" class="h-16 w-16 object-cover rounded">
@@ -37,11 +54,24 @@
                         <td class="px-4 py-2">{{ log.protein|default_if_none:"-" }}</td>
                         <td class="px-4 py-2">{{ log.carbohydrates|default_if_none:"-" }}</td>
                         <td class="px-4 py-2">{{ log.fat|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.saturated_fat|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.cholesterol|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.sodium|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.potassium|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.fiber|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.sugars|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.vitamin_c|default_if_none:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.omega3_epa_dha|default_if_none:"-" }}</td>
                         <td class="px-4 py-2">{{ log.notes|default:"-" }}</td>
+                        <td class="px-4 py-2">{{ log.get_data_source_display|default:"-" }}</td>
+                        <td class="px-4 py-2">
+                            <a href="{% url 'edit_nutrition_log' log.id %}" class="text-blue-500 hover:text-blue-700">Edit</a>
+                            <a href="{% url 'delete_nutrition_log' log.id %}" class="text-red-500 hover:text-red-700 ml-2">Delete</a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-4">No nutrition logs found.</td>
+                        <td colspan="19" class="text-center py-4">No nutrition logs found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -71,7 +101,7 @@
         <div id="add-log-form" class="hidden mt-4">
             <h2 class="text-xl font-semibold mb-2">Add New Nutrition Log</h2>
             <p class="text-sm text-gray-600 mb-4">Upload a photo or add notes about your meal. Our AI will try to fill in the nutritional details for you if you leave them blank.</p>
-            <form method="post" enctype="multipart/form-data" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <form id="nutrition-form" method="post" enctype="multipart/form-data" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
                 {% csrf_token %}
                 {% for field in form %}
                     {% if field.name == 'meal_type' %}
@@ -90,9 +120,12 @@
                     {% endif %}
                 {% endfor %}
 
-                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                <button id="submit-btn" type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                     Save Log
                 </button>
+                <div id="loading-indicator" class="hidden mt-2">
+                    <p class="text-gray-600">Processing, please wait...</p>
+                </div>
             </form>
         </div>
     </div>
@@ -112,6 +145,15 @@
             this.classList.remove('bg-red-500', 'hover:bg-red-700');
             this.classList.add('bg-green-500', 'hover:bg-green-700');
         }
+    });
+
+    document.getElementById('nutrition-form').addEventListener('submit', function() {
+        var submitBtn = document.getElementById('submit-btn');
+        var loadingIndicator = document.getElementById('loading-indicator');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+        loadingIndicator.classList.remove('hidden');
     });
 </script>
 {% endblock %}
